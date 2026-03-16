@@ -1,6 +1,8 @@
-from app.application.use_cases.create_user import CreateUserUseCase
+"""Application entrypoint for manual/local testing."""
+
 from app.adapters.repositories.in_memory_user_repository import InMemoryUserRepository
-from app.adapters.simple_hasher import SimpleHasher
+from app.adapters.security.simple_hasher import SimpleHasher
+from app.application.use_cases.create_user import CreateUserUseCase
 
 
 repository = InMemoryUserRepository()
