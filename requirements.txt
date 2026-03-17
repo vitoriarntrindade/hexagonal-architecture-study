@@ -3,5 +3,7 @@ uvicorn
 sqlalchemy
 alembic
 python-dotenv
+bcrypt
 pydantic[email]
 pytest
+httpx
