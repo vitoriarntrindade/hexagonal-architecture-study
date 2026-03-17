@@ -13,11 +13,9 @@ from app.adapters.repositories.sqlalchemy_user_repository import (
 from app.adapters.security.simple_hasher import SimpleHasher
 from app.application.use_cases.create_user import CreateUserUseCase
 from app.domain.exceptions import EmailAlreadyRegisteredError
-from app.infrastructure.database import create_tables, get_session
+from app.infrastructure.database import get_session
 
 app = FastAPI()
-
-create_tables()
 
 
 class CreateUserRequest(BaseModel):

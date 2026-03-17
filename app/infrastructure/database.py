@@ -1,11 +1,14 @@
 """Database engine and session factory configuration."""
 
+import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.adapters.repositories.models import Base
+load_dotenv()
 
-DATABASE_URL = "sqlite:///./app.db"
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 engine = create_engine(
     DATABASE_URL,
@@ -17,11 +20,6 @@ SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
 )
-
-
-def create_tables() -> None:
-    """Create all tables in the database if they do not exist yet."""
-    Base.metadata.create_all(bind=engine)
 
 
 def get_session() -> Session:
