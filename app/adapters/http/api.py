@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.adapters.repositories.sqlalchemy_user_repository import (
     SQLAlchemyUserRepository,
 )
-from app.adapters.security.simple_hasher import SimpleHasher
+from app.adapters.security.bcrypt_hasher import BcryptHasher
 from app.application.use_cases.create_user import CreateUserUseCase
 from app.domain.exceptions import EmailAlreadyRegisteredError
 from app.infrastructure.database import get_session
@@ -58,7 +58,7 @@ def get_use_case(session: Session = Depends(get_db)) -> CreateUserUseCase:
         A fully wired CreateUserUseCase instance.
     """
     repository = SQLAlchemyUserRepository(session)
-    hasher = SimpleHasher()
+    hasher = BcryptHasher()
     return CreateUserUseCase(repository, hasher)
 
 
