@@ -1,2 +1,6 @@
+[tool.ruff]
+line-length = 87
+target-version = "py312"
+exclude = [".venvpy", "migrations"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -20,3 +20,12 @@ class UserResponse(BaseModel):
     name: str
     email: EmailStr
     created_at: datetime
+
+
+class UpdateUserRequest(BaseModel):
+    """Request payload for updating a user."""
+    name: str | None = None
+
+class DeleteUserRequest(BaseModel):
+    """Request payload for deleting a user."""
+    email: EmailStr

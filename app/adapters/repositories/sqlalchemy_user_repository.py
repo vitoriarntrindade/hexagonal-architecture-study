@@ -54,6 +54,29 @@ class SQLAlchemyUserRepository(UserRepository):
         self._session.add(model)
         self._session.commit()
 
+        def update(self, user: User) -> None:
+            """Update an existing user in the database.
+
+            Args:
+                user: The User domain entity to update.
+            """
+            model = self._session.query(UserModel).filter(UserModel.email == user.email).first()
+            if model:
+                model.name = user.name
+                model.password_hash = user.password_hash
+                self._session.commit()
+
+        def delete(self, email: str) -> None:
+            """Remove a user by email address from the database.
+
+            Args:
+                email: The email address of the user to remove.
+            """
+            model = self._session.query(UserModel).filter(UserModel.email == email).first()
+            if model:
+                self._session.delete(model)
+                self._session.commit()
+
     @staticmethod
     def _to_entity(model: UserModel) -> User:
         """Map a UserModel ORM instance to a User domain entity.

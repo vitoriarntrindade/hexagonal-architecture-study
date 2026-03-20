@@ -33,3 +33,22 @@ class InMemoryUserRepository(UserRepository):
             user: The User entity to persist.
         """
         self._users.append(user)
+
+    def update(self, user: User) -> None:
+        """Update an existing user in the in-memory store.
+
+        Args:
+            user: The User entity to update.
+        """
+        for idx, existing_user in enumerate(self._users):
+            if existing_user.email == user.email:
+                self._users[idx] = user
+                return
+
+    def delete(self, email: str) -> None:
+        """Remove a user by email address from the in-memory store.
+
+        Args:
+            email: The email address of the user to remove.
+        """
+        self._users = [user for user in self._users if user.email != email]

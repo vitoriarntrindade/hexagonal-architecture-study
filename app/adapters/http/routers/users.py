@@ -7,11 +7,20 @@ from app.adapters.http.dependencies import (
     get_user_by_email_use_case,
 )
 from app.adapters.http.schemas import CreateUserRequest, UserResponse
+from app.adapters.http.schemas import UpdateUserRequest
+from app.adapters.http.dependencies_update_delete import (
+    get_update_user_use_case,
+    get_delete_user_use_case,
+)
 from app.application.use_cases.create_user import CreateUserUseCase
 from app.application.use_cases.get_user_by_email import GetUserByEmailUseCase
+from app.application.use_cases.update_user import UpdateUserUseCase
+from app.application.use_cases.delete_user import DeleteUserUseCase
 from app.domain.exceptions import EmailAlreadyRegisteredError, UserNotFoundError
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
 
 
 @router.post("", response_model=UserResponse, status_code=201)
@@ -72,5 +81,56 @@ def get_user(
             email=user.email,
             created_at=user.created_at,
         )
+    except UserNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.patch("/{email}", response_model=UserResponse, status_code=200)
+def update_user(
+    email: str,
+    payload: UpdateUserRequest,
+    use_case: UpdateUserUseCase = Depends(get_update_user_use_case),
+) -> UserResponse:
+    """Update a user's information.
+
+    Args:
+        email (str): Email address of the user to update.
+        payload (UpdateUserRequest): Request body with new user data.
+        use_case (UpdateUserUseCase): Injected use case instance.
+
+    Returns:
+        UserResponse: Updated user data.
+
+    Raises:
+        HTTPException: If user not found (404).
+    """
+    try:
+        user = use_case.execute(email=email, name=payload.name)
+        return UserResponse(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            created_at=user.created_at,
+        )
+    except UserNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.delete("/{email}", status_code=204)
+def delete_user(
+    email: str,
+    use_case: DeleteUserUseCase = Depends(get_delete_user_use_case),
+) -> None:
+    """Delete a user by email address.
+
+    Args:
+        email (str): Email address of the user to delete.
+        use_case (DeleteUserUseCase): Injected use case instance.
+
+    Raises:
+        HTTPException: If user not found (404).
+    """
+    try:
+        use_case.execute(email=email)
     except UserNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

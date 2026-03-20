@@ -27,3 +27,19 @@ class UserRepository(ABC):
         Args:
             user: The User entity to save.
         """
+
+    @abstractmethod
+    def update(self, user: User) -> None:
+        """Update an existing user instance.
+
+        Args:
+            user: The User entity to update.
+        """
+
+    @abstractmethod
+    def delete(self, email: str) -> None:
+        """Remove a user by email address.
+
+        Args:
+            email: The email address of the user to remove.
+        """
