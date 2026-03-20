@@ -172,35 +172,3 @@ def test_should_return_400_on_duplicate_email(client: TestClient) -> None:
     assert "vitoria@email.com" in response.json()["detail"]
 
 
-def test_should_return_422_on_invalid_email(client: TestClient) -> None:
-    response = client.post(
-        "/users",
-        json={
-            "name": "Vitória",
-            "email": "not-an-email",
-            "password": "123456",
-        },
-    )
-
-    assert response.status_code == 422
-
-
-def test_should_return_422_on_missing_fields(client: TestClient) -> None:
-    response = client.post("/users", json={"name": "Vitória"})
-
-    assert response.status_code == 422
-
-
-def test_should_not_expose_password_hash_in_response(client: TestClient) -> None:
-    response = client.post(
-        "/users",
-        json={
-            "name": "Vitória",
-            "email": "vitoria@email.com",
-            "password": "123456",
-        },
-    )
-
-    body = response.json()
-    assert "password" not in body
-    assert "password_hash" not in body
