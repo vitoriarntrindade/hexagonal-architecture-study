@@ -43,3 +43,15 @@ class UserRepository(ABC):
         Args:
             email: The email address of the user to remove.
         """
+
+    @abstractmethod
+    def list(self, page: int = 1, size: int = 10) -> tuple[list[User], int]:
+        """Return a paginated list of users and the total count.
+
+        Args:
+            page: 1-based page number.
+            size: Number of items per page.
+
+        Returns:
+            A tuple containing a list of User and the total user count.
+        """
