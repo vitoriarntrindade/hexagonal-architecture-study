@@ -36,6 +36,20 @@ class ListUsersQuery(BaseModel):
     size: int = 10
 
 
+class LoginRequest(BaseModel):
+    """Request body for login endpoint."""
+
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """Response containing the authentication token."""
+
+    access_token: str
+    token_type: str = "bearer"
+
+
 class UpdateUserRequest(BaseModel):
     """Request payload for updating a user."""
     name: str | None = None

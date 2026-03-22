@@ -20,6 +20,9 @@ from app.application.use_cases.delete_user import DeleteUserUseCase
 from app.application.use_cases.list_users import ListUsersUseCase
 from app.domain.exceptions import EmailAlreadyRegisteredError, UserNotFoundError
 from app.adapters.http.schemas import ListUsersResponse, ListUsersQuery
+from app.adapters.http.schemas import LoginRequest, TokenResponse
+from app.adapters.http.dependencies_auth import get_auth_use_case, get_current_user
+from app.application.use_cases.authenticate_user import AuthenticateUserUseCase
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -105,6 +108,23 @@ def list_users(
     users, total = use_case.execute(page=q.page, size=q.size)
     items = [UserResponse(id=user.id, name=user.name, email=user.email, created_at=user.created_at) for user in users]
     return ListUsersResponse(items=items, total=total)
+
+
+@router.post("/login", response_model=TokenResponse, status_code=200)
+def login(
+    payload: LoginRequest,
+    use_case: AuthenticateUserUseCase = Depends(get_auth_use_case),
+) -> TokenResponse:
+    """Authenticate user and return a JWT token."""
+    token = use_case.execute(email=payload.email, password=payload.password)
+    return TokenResponse(access_token=token)
+
+
+@router.get("/me", response_model=UserResponse, status_code=200)
+def me(current_user=Depends(get_current_user)) -> UserResponse:
+    """Return current authenticated user."""
+    user = current_user
+    return UserResponse(id=user.id, name=user.name, email=user.email, created_at=user.created_at)
 
 
 @router.patch("/{email}", response_model=UserResponse, status_code=200)
