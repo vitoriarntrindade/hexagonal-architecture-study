@@ -9,3 +9,5 @@ pydantic-settings
 PyJWT
 pytest
 httpx
+testcontainers[postgres]
+psycopg2-binary
