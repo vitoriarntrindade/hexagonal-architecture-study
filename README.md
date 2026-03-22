@@ -1,13 +1,30 @@
-# 🔷 Hexagonal Architecture Study
 
-> Estudo prático de **Arquitetura Hexagonal (Ports and Adapters)** com Python.  
-> O foco não é entregar uma API pronta — é entender, na prática, como isolar o domínio,  
-> tornar a lógica de negócio testável e trocar infraestrutura sem tocar no núcleo da aplicação.
+#  Hexagonal Architecture Study
+
+> Estudo prático de **Arquitetura Hexagonal (Ports and Adapters)** usando **Python + FastAPI**.  
+> O objetivo deste projeto é demonstrar **boas práticas de engenharia de software**, isolamento do domínio e arquitetura testável.
 
 ---
 
-## 🎯 Objetivo
+## 📚 Sumário
 
+- 🎯 [Sobre o projeto](#-sobre-o-projeto)
+- 🏛️ [Arquitetura](#-arquitetura)
+- 🧰 [Tecnologias](#-tecnologias)
+- 📂 [Estrutura do projeto](#-estrutura-do-projeto)
+- ⚡ [Quick Start](#-quick-start)
+- ⚙️ [Configuração de ambiente](#-configuração-de-ambiente)
+- 🚀 [Rodando a API](#-rodando-a-api)
+- 🧪 [Testes](#-testes)
+- 🛠️ [Makefile](#-makefile)
+- ✅ [Boas práticas aplicadas](#-boas-práticas-aplicadas)
+- 🔁 [CI / Pipeline](#-ci--pipeline)
+- 📈 [Evolução do projeto](#-evolução-do-projeto)
+- 📚 [Referências](#-referências)
+
+---
+
+# 🎯 Sobre o projeto
 Este repositório existe para um único propósito: **compreender arquitetura hexagonal de forma prática**.
 
 Cada decisão de design aqui foi tomada pensando em **clareza conceitual**, não em performance ou features.  
@@ -33,247 +50,302 @@ Com isso:
 
 ---
 
-## 🏛️ Arquitetura Hexagonal em resumo
+# 🏛 Arquitetura
 
-A ideia central é simples: o domínio define **o que** o sistema faz.  
-Os adapters definem **como** o sistema se comunica com o mundo externo.
+Este projeto segue o padrão **Ports and Adapters (Hexagonal Architecture)**.
 
-```
-         [ HTTP / CLI / Tests ]
-                  │
-          ┌───────▼────────┐
-          │   Input Port   │  ← interface que o mundo externo usa
-          └───────┬────────┘
-                  │
-     ┌────────────▼─────────────┐
-     │       Use Cases          │  ← orquestra o domínio
-     │  (Application Layer)     │
-     └────────────┬─────────────┘
-                  │
-          ┌───────▼────────┐
-          │    Domain      │  ← entidades, regras, exceções
-          └───────┬────────┘
-                  │
-          ┌───────▼────────┐
-          │  Output Port   │  ← interface que o domínio define
-          └───────┬────────┘
-                  │
-     ┌────────────▼─────────────┐
-     │  Adapters de Saída       │  ← InMemory, SQLAlchemy, etc.
-     └──────────────────────────┘
+A lógica de negócio fica **no centro**, enquanto infraestrutura fica **nas bordas**.
+
+```mermaid
+flowchart TD
+
+A["HTTP / CLI / Tests"]
+B["Input Adapters (FastAPI)"]
+C["Application (Use Cases)"]
+D["Domain (Entities / Exceptions)"]
+E["Ports (Interfaces)"]
+F["Output Adapters<br/>(SQLAlchemy / Cache / Security)"]
+
+A --> B
+B --> C
+C --> D
+D --> E
+E --> F
 ```
 
-O domínio **nunca aponta para fora**. Quem depende de quem é sempre de fora para dentro.
+
+### Princípios aplicados
+
+- Inversão de dependência
+- Isolamento do domínio
+- Testabilidade
+- Substituição de infraestrutura
+- Arquitetura limpa
 
 ---
 
-## 📁 Estrutura de pastas
+# 🧰 Tecnologias
 
-```
-hexagonal-architecture-study/
-├── app/
-│   ├── domain/                  # 🧠 Núcleo da aplicação
-│   │   ├── entities/
-│   │   │   └── user.py          # Entidade User
-│   │   └── exceptions.py        # Exceções de domínio
-│   │
-│   ├── ports/                   # 🔌 Interfaces (contratos)
-│   │   ├── user_repository.py   # Port de saída: repositório
-│   │   └── password_hasher.py   # Port de saída: hasher
-│   │
-│   ├── application/             # ⚙️ Casos de uso
+| Tecnologia | Descrição |
+|------------|-----------|
+| Python | Linguagem principal |
+| FastAPI | Framework HTTP |
+| SQLAlchemy | ORM |
+| PostgreSQL | Banco de dados |
+| Pytest | Testes |
+| Testcontainers | Testes de integração |
+| Alembic | Migrations |
+| JWT | Autenticação |
+| GitHub Actions | CI pipeline |
+| Pre-commit | Qualidade de código |
+
+---
+
+# 📂 Estrutura do projeto
+
+````
+├── alembic.ini                    # Configuração do Alembic (migrations do banco)
+├── Makefile                       # Comandos utilitários para desenvolvimento (run, test, lint, check)
+├── pyproject.toml                 # Configuração de ferramentas Python (ruff, pytest, etc.)
+├── requirements.txt               # Dependências do projeto
+├── README.md                      # Documentação principal do repositório
+│
+├── migrations/                    # Migrations do banco gerenciadas pelo Alembic
+│   ├── env.py                     # Configuração do ambiente de migrations
+│   ├── script.py.mako             # Template usado pelo Alembic para gerar migrations
+│   └── versions/                  # Histórico de migrations do banco
+│
+├── app/                           # Código principal da aplicação
+│
+│   ├── __init__.py                # Marca o diretório como módulo Python
+│   ├── config.py                  # Configuração da aplicação (settings via env)
+│   ├── main.py                    # Ponto de entrada da aplicação FastAPI
+│
+│   ├── domain/                    # 🧠 Camada de domínio (núcleo da aplicação)
+│   │   ├── __init__.py
+│   │   ├── exceptions.py          # Exceções de domínio (erros de negócio)
+│   │   └── entities/
+│   │       ├── __init__.py
+│   │       └── user.py            # Entidade User e suas regras básicas
+│
+│   ├── application/               # ⚙️ Camada de aplicação (casos de uso)
+│   │   ├── __init__.py
 │   │   └── use_cases/
-│   │       └── create_user.py
-│   │
-│   └── adapters/                # 🔧 Implementações concretas
-│       ├── repositories/
-│       │   └── in_memory_user_repository.py
-│       ├── security/
-│       │   └── simple_hasher.py
-│       └── http/
-│           └── api.py           # Adapter de entrada (FastAPI)
+│   │       ├── __init__.py
+│   │       ├── create_user.py         # Caso de uso: criação de usuário
+│   │       ├── authenticate_user.py   # Caso de uso: autenticação de usuário
+│   │       ├── list_users.py          # Caso de uso: listagem de usuários
+│   │       ├── get_user_by_email.py   # Caso de uso: busca de usuário por email
+│   │       ├── update_user.py         # Caso de uso: atualização de usuário
+│   │       └── delete_user.py         # Caso de uso: remoção de usuário
 │
-├── tests/                       # 🧪 Testes focados no núcleo
-│   └── applications/
-│       └── test_create_user.py
+│   ├── ports/                     # 🔌 Contratos (interfaces) definidos pelo domínio
+│   │   ├── __init__.py
+│   │   ├── user_repository.py     # Interface do repositório de usuários
+│   │   ├── password_hasher.py     # Interface para hashing de senha
+│   │   ├── auth_token.py          # Interface para geração/validação de tokens
+│   │   └── cache.py               # Interface de cache
 │
-├── main.py
-└── requirements.txt
-```
+│   ├── adapters/                  # 🔧 Implementações concretas dos ports
+│   │   ├── __init__.py
+│
+│   │   ├── repositories/          # Adapters de persistência
+│   │   │   ├── __init__.py
+│   │   │   ├── models.py                  # Modelos ORM SQLAlchemy
+│   │   │   ├── in_memory_user_repository.py # Implementação em memória (testes/dev)
+│   │   │   └── sqlalchemy_user_repository.py # Implementação real com SQLAlchemy
+│
+│   │   ├── security/              # Implementações de hashing de senha
+│   │   │   ├── __init__.py
+│   │   │   ├── simple_hasher.py   # Hasher simples (uso didático/testes)
+│   │   │   └── bcrypt_hasher.py   # Hasher seguro com bcrypt
+│
+│   │   ├── auth/                  # Implementações de autenticação
+│   │   │   └── jwt_adapter.py     # Implementação JWT do port de autenticação
+│
+│   │   ├── cache/                 # Implementações de cache
+│   │   │   └── in_memory_cache.py # Cache em memória (substituível por Redis etc.)
+│
+│   │   └── http/                  # Adapter de entrada (API HTTP)
+│   │       ├── __init__.py
+│   │       ├── api.py                     # Criação da aplicação FastAPI
+│   │       ├── schemas.py                 # Schemas Pydantic usados pela API
+│   │       ├── dependencies.py            # Dependências compartilhadas da API
+│   │       ├── dependencies_auth.py       # Dependências relacionadas à autenticação
+│   │       ├── dependencies_list.py       # Dependências específicas de listagem
+│   │       ├── dependencies_update_delete.py # Dependências para update/delete
+│   │       └── routers/
+│   │           ├── __init__.py
+│   │           └── users.py               # Rotas HTTP de usuários
+│
+│   └── infrastructure/            # Infraestrutura técnica da aplicação
+│       ├── __init__.py
+│       └── database.py            # Configuração do SQLAlchemy e conexão com DB
+│
+└── tests/                         # 🧪 Suíte de testes
+    ├── __init__.py
+    ├── conftest.py                # Fixtures globais do pytest
+│
+    ├── application/               # Testes da camada de aplicação
+│
+    ├── applications/              # Testes dos casos de uso
+│   │   ├── test_create_user.py
+│   │   └── test_get_user_by_email.py
+│
+    ├── http/                      # Testes da API
+│   │   ├── test_api.py
+│   │   ├── test_auth.py
+│   │   ├── test_error_responses.py
+│   │   ├── test_list_users.py
+│   │   ├── test_smoke.py
+│   │   └── test_user_endpoints.py
+│
+    ├── repositories/              # Testes de integração do repositório
+│   │   └── test_sqlalchemy_user_repository_integration.py
+│
+    └── security/                  # Testes das implementações de hashing
+        └── test_hashers.py
+````
 
 ---
 
-## 🧱 Camadas explicadas
+# ⚡ Quick Start
 
-### 🧠 Domain
-O coração da aplicação. Não depende de nada externo.  
-Contém entidades e exceções que expressam as regras do negócio.
+### Clone o repositório
 
-```python
-# Exceção de domínio — sem acoplamento com HTTP ou banco
-class EmailAlreadyRegisteredError(Exception):
-    def __init__(self, email: str) -> None:
-        self.email = email
-        super().__init__(f"Email already registered: {email}")
-```
+```git clone https://github.com/vitoriarntrindade/hexagonal-architecture-study.git```
+
+```cd hexagonal-architecture-study```
 
 ---
 
-### 🔌 Ports
-Interfaces abstratas que o domínio define para se comunicar com o mundo externo.  
-O domínio **define o contrato**. Os adapters **implementam**.
+# ⚙️ Configuração de ambiente
 
-```python
-class UserRepository(ABC):
-    @abstractmethod
-    def save(self, user: User) -> None: ...
+Crie o arquivo `.env` baseado no `.env.example`.
 
-    @abstractmethod
-    def find_by_email(self, email: str) -> Optional[User]: ...
-```
+Exemplo:
+
+- DATABASE_URL=postgresql://postgres:postgres@localhost:5432/hexagonal
+- JWT_SECRET=super-secret-key
+- JWT_ALGORITHM=HS256
 
 ---
 
-### ⚙️ Application (Use Cases)
-Orquestra o domínio sem saber qual infraestrutura está sendo usada.  
-Depende apenas de abstrações (ports).
+# 📦 Instalação de dependências
 
-```python
-class CreateUserUseCase:
-    def __init__(
-        self,
-        repository: UserRepository,
-        hasher: PasswordHasher,
-    ) -> None:
-        self._repository = repository
-        self._hasher = hasher
+`` pip install -r requirements.txt``
 
-    def execute(self, name: str, email: str, password: str) -> User:
-        if self._repository.find_by_email(email):
-            raise EmailAlreadyRegisteredError(email)
-        ...
-```
+ou
+
+`` make install ``
 
 ---
 
-### 🔧 Adapters
-Implementações concretas dos ports. Podem ser trocados sem alterar o domínio.
+# 🚀 Rodando a API
 
-| Port             | Adapter disponível          |
-|------------------|-----------------------------|
-| `UserRepository` | `InMemoryUserRepository`    |
-| `UserRepository` | `SQLAlchemyUserRepository` *(em breve)* |
-| `PasswordHasher` | `SimpleHasher`              |
-| `PasswordHasher` | `BcryptHasher` *(em breve)* |
+``make run``
 
----
+ou manualmente:
 
-## 🔄 Trocando adapters sem tocar no domínio
+``uvicorn app.main:app --reload``
 
-Essa é uma das demonstrações centrais do repositório.  
-O use case não sabe — e não precisa saber — qual repositório está sendo usado.
+API disponível em:
 
-```python
-# Ambiente de desenvolvimento / testes
-use_case = CreateUserUseCase(
-    repository=InMemoryUserRepository(),
-    hasher=SimpleHasher(),
-)
-
-# Ambiente de produção (mesmo use case, adapters diferentes)
-use_case = CreateUserUseCase(
-    repository=SQLAlchemyUserRepository(session),
-    hasher=BcryptHasher(),
-)
-```
-
-Zero alteração no `CreateUserUseCase`. Zero alteração no domínio.
+http://localhost:8000/docs
 
 ---
 
-## 🧪 Testes
+# 🧪 Testes
 
-Um dos maiores benefícios da arquitetura hexagonal é a **testabilidade do núcleo**.  
-Os use cases são testados com adapters em memória — sem banco, sem HTTP, sem mocks complexos.
+O projeto possui dois tipos de testes:
 
-```python
-@pytest.fixture
-def use_case():
-    return CreateUserUseCase(
-        repository=InMemoryUserRepository(),
-        hasher=SimpleHasher(),
-    )
+### Unit Tests
 
-def test_should_not_allow_duplicate_email(use_case):
-    use_case.execute(name="Vitória", email="vitoria@email.com", password="123456")
+pytest tests/
 
-    with pytest.raises(EmailAlreadyRegisteredError, match="vitoria@email.com"):
-        use_case.execute(name="Outra Pessoa", email="vitoria@email.com", password="abcdef")
-```
+### Integration Tests
 
-### Rodando os testes
-
-```bash
-pytest tests/ -v
-```
+pytest -m integration
 
 ---
 
-## 🚀 Como rodar o projeto
+# 🛠 Makefile
 
-```bash
-# Clone o repositório
-git clone https://github.com/vitoriarntrindade/hexagonal-architecture-study.git
-cd hexagonal-architecture-study
-
-# Crie e ative o ambiente virtual
-python -m venv .venv
-source .venv/bin/activate
-
-# Instale as dependências
-pip install -r requirements.txt
-
-# Rode a aplicação
-python -m app.main
-```
+| Comando | Descrição |
+|--------|-----------|
+| make install | Instala dependências |
+| make run | Executa a API |
+| make test | Executa testes |
+| make lint | Executa ruff |
+| make check | Executa lint + testes |
 
 ---
 
-## 🏆 O que este projeto demonstra
+# 🧹 Qualidade de código
 
-| Conceito                        | Como é demonstrado                                      |
-|---------------------------------|---------------------------------------------------------|
-| Isolamento do domínio           | `domain/` não importa nada de framework                 |
-| Inversão de dependência         | Use cases dependem de abstrações, não implementações    |
-| Testabilidade sem infraestrutura| Testes rodam com repositório em memória                 |
-| Substituição de adapters        | Mesma interface, implementações diferentes              |
-| Exceções de domínio             | `EmailAlreadyRegisteredError` no lugar de `ValueError`  |
+Este projeto usa **pre-commit hooks** para manter o padrão de código.
 
----
+Ferramentas utilizadas:
 
-## 🔄 Evolução do projeto
+- Ruff (lint)
+- Pytest
 
-Este repositório está em evolução contínua. O objetivo é demonstrar  
-como uma aplicação cresce **sem comprometer o núcleo arquitetural**.
+Instalar hooks:
 
-Próximos passos planejados:
-
-- [ ] Adapter SQLAlchemy para `UserRepository`
-- [ ] Migrations com Alembic
-- [ ] Adapter Bcrypt para `PasswordHasher`
-- [ ] Injeção de dependência com `dependency-injector` ou similar
-- [ ] Melhorias no tratamento de exceções na camada HTTP
-- [ ] Novos casos de uso (`GetUser`, `ListUsers`)
-- [ ] Configuração de ambiente com `pydantic-settings`
-
-> Algumas simplificações foram feitas propositalmente para fins didáticos,  
-> como o uso de `SimpleHasher` e repositório em memória como padrão.  
-> Elas serão evoluídas gradualmente, sempre preservando o isolamento do domínio.
+pre-commit install
 
 ---
 
-## 📚 Referências
+# 🔁 CI / Pipeline
 
-- [Alistair Cockburn — Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Martin Fowler — Patterns of Enterprise Application Architecture](https://martinfowler.com/books/eaa.html)
-- [Clean Architecture — Robert C. Martin](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+O projeto possui **CI configurado com GitHub Actions**.
+
+Pipeline executa:
+
+1. Lint com Ruff
+2. Testes unitários
+3. Testes de integração com PostgreSQL via Testcontainers
+
+Arquivo:
+
+.github/workflows/ci.yml
+
+---
+
+# 🏆 Boas práticas aplicadas
+
+| Prática | Implementação |
+|------|------|
+| Hexagonal Architecture | Separação domain/application/adapters |
+| Dependency inversion | Use cases dependem de ports |
+| Domain isolation | Domain não depende de framework |
+| Testability | Testes sem infraestrutura |
+| Integration tests | Testcontainers |
+| CI/CD | GitHub Actions |
+| Code quality | Ruff + Pre-commit |
+| Configuration management | Settings via env |
+
+---
+
+# 🔄 Evolução do projeto
+
+Este projeto continua evoluindo para demonstrar arquitetura em sistemas reais.
+
+Possíveis próximos passos:
+
+- cache Redis
+- observabilidade (OpenTelemetry)
+- rate limiting
+- métricas
+- containerização com Docker
+- health checks
+- dependency injection container
+
+---
+
+# 📚 Referências
+
+- Hexagonal Architecture — Alistair Cockburn
+- Clean Architecture — Robert C. Martin
+- FastAPI Documentation
+- SQLAlchemy Documentation
