@@ -1,41 +1,58 @@
 """Shared pytest fixtures and configuration for the test suite.
 
-The ``autouse`` session fixture below sets a deterministic JWT secret for all
-tests so that:
-- tokens issued by any adapter are verifiable by any other adapter instance
-  within the same test run;
-- the PyJWT ``InsecureKeyLengthWarning`` is silenced (secret is >= 32 bytes);
-- tests do **not** need to manually override ``get_current_user``.
+Environment variables are injected at the **module level** (before any app
+module is imported) so that ``app.infrastructure.database`` — which reads
+``DATABASE_URL`` lazily via ``get_settings()`` — always finds the test values.
+
+What this guarantees
+- Tokens issued during tests are verifiable (same JWT secret everywhere).
+- No ``KeyError: DATABASE_URL`` during test collection.
+- PyJWT ``InsecureKeyLengthWarning`` is silenced (secret >= 32 bytes).
+- SQLAlchemy tables exist in the in-memory DB before any test runs.
 """
 
 from __future__ import annotations
 
 import os
+from typing import Generator
+
 import pytest
 
-# Deterministic 32-byte test secret — safe only for testing.
+# ---------------------------------------------------------------------------
+# Inject env vars at module import time — before any app module is imported.
+# ---------------------------------------------------------------------------
 _TEST_JWT_SECRET = "test-secret-key-32-bytes-long-ok!"
+
+os.environ.setdefault("JWT_SECRET", _TEST_JWT_SECRET)
+os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+os.environ.setdefault("ENV", "test")
 
 
 @pytest.fixture(autouse=True, scope="session")
-def set_test_env() -> None:
-    """Inject test environment variables before any test module is imported.
+def set_test_env() -> Generator[None, None, None]:
+    """Clear settings/engine caches and create DB tables once per session.
 
-    This fixture runs once per test session and ensures all calls to
-    ``get_settings()`` inside the application return the test values.
-
-    The ``lru_cache`` on ``get_settings`` is cleared before and after
-    injection so the patched values are always picked up.
+    The env vars are already set at module level above.  This fixture:
+    1. Clears ``get_settings()`` and ``_engine()`` caches so the test values
+       are always picked up even when a previous session left cached state.
+    2. Calls ``Base.metadata.create_all`` so every SQLAlchemy-backed test
+       finds the ``users`` table ready to use — no Alembic migrations needed.
     """
     from app.config import get_settings
+    from app.infrastructure.database import _engine
+    from app.adapters.repositories.models import Base
 
-    # Clear any cached settings from a previous run / import.
     get_settings.cache_clear()
+    _engine.cache_clear()
 
-    os.environ.setdefault("JWT_SECRET", _TEST_JWT_SECRET)
-    os.environ.setdefault("ENV", "test")
+    # Build tables in the in-memory SQLite DB.
+    engine = _engine()
+    Base.metadata.create_all(engine)
 
-    yield  # run all tests
+    yield
 
-    # Restore: clear cache so other processes / sessions start fresh.
+    # Teardown: drop tables and clear caches for a clean slate.
+    Base.metadata.drop_all(engine)
     get_settings.cache_clear()
+    _engine.cache_clear()
+
