@@ -1,6 +1,6 @@
 """HTTP router for user-related endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.adapters.http.dependencies import (
     get_create_user_use_case,
@@ -18,7 +18,7 @@ from app.application.use_cases.get_user_by_email import GetUserByEmailUseCase
 from app.application.use_cases.update_user import UpdateUserUseCase
 from app.application.use_cases.delete_user import DeleteUserUseCase
 from app.application.use_cases.list_users import ListUsersUseCase
-from app.domain.exceptions import EmailAlreadyRegisteredError, UserNotFoundError
+# Domain exceptions are handled globally in the application factory.
 from app.adapters.http.schemas import ListUsersResponse, ListUsersQuery
 from app.adapters.http.schemas import LoginRequest, TokenResponse
 from app.adapters.http.dependencies_auth import get_auth_use_case, get_current_user
@@ -46,20 +46,17 @@ def create_user(
     Raises:
         HTTPException: 400 if the email is already registered.
     """
-    try:
-        user = use_case.execute(
-            name=payload.name,
-            email=payload.email,
-            password=payload.password,
-        )
-        return UserResponse(
-            id=user.id,
-            name=user.name,
-            email=user.email,
-            created_at=user.created_at,
-        )
-    except EmailAlreadyRegisteredError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    user = use_case.execute(
+        name=payload.name,
+        email=payload.email,
+        password=payload.password,
+    )
+    return UserResponse(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        created_at=user.created_at,
+    )
 
 
 @router.post("/login", response_model=TokenResponse, status_code=200)
@@ -96,16 +93,13 @@ def get_user(
     Raises:
         HTTPException: 404 if no user with the given email exists.
     """
-    try:
-        user = use_case.execute(email)
-        return UserResponse(
-            id=user.id,
-            name=user.name,
-            email=user.email,
-            created_at=user.created_at,
-        )
-    except UserNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    user = use_case.execute(email)
+    return UserResponse(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        created_at=user.created_at,
+    )
 
 
 @router.get("", response_model=ListUsersResponse, status_code=200)
@@ -147,16 +141,13 @@ def update_user(
     Raises:
         HTTPException: If user not found (404).
     """
-    try:
-        user = use_case.execute(email=email, name=payload.name)
-        return UserResponse(
-            id=user.id,
-            name=user.name,
-            email=user.email,
-            created_at=user.created_at,
-        )
-    except UserNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    user = use_case.execute(email=email, name=payload.name)
+    return UserResponse(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        created_at=user.created_at,
+    )
 
 
 @router.delete("/{email}", status_code=204)
@@ -173,7 +164,4 @@ def delete_user(
     Raises:
         HTTPException: If user not found (404).
     """
-    try:
-        use_case.execute(email=email)
-    except UserNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    use_case.execute(email=email)
