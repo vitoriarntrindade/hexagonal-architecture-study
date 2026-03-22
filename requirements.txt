@@ -5,5 +5,7 @@ alembic
 python-dotenv
 bcrypt
 pydantic[email]
+pydantic-settings
+PyJWT
 pytest
 httpx
