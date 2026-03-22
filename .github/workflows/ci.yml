@@ -24,17 +24,14 @@ jobs:
       - name: Install dependencies
         run: |
           python -m venv .venv
-          . .venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install ruff
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -r requirements.txt
+          .venv/bin/python -m pip install ruff
 
       - name: Lint with ruff
         run: |
-          . .venv/bin/activate
-          ruff .
+          .venv/bin/python -m ruff check .
 
       - name: Run tests
         run: |
-          . .venv/bin/activate
-          python -m pytest -q
+          .venv/bin/python -m pytest -q
