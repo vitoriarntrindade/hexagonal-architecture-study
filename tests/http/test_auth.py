@@ -1,73 +1,101 @@
+"""HTTP tests for authentication endpoints (/login, /me).
+
+All adapters are in-memory; the JWTAuthAdapter is built from ``get_settings()``
+so the token issued by the login use case is verifiable by ``get_current_user``
+without any ad-hoc dependency pop/override mid-test.
+"""
+
+from __future__ import annotations
+
 from typing import Tuple
 
 import pytest
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.testclient import TestClient
 
+from app.adapters.auth.jwt_adapter import JWTAuthAdapter
 from app.adapters.http.api import create_app
 from app.adapters.http.dependencies import get_create_user_use_case
-from app.adapters.http.dependencies_auth import get_auth_use_case, get_auth_token_provider
-from app.application.use_cases.create_user import CreateUserUseCase
-from app.application.use_cases.authenticate_user import AuthenticateUserUseCase
+from app.adapters.http.dependencies_auth import get_auth_use_case, get_current_user
 from app.adapters.repositories.in_memory_user_repository import InMemoryUserRepository
 from app.adapters.security.simple_hasher import SimpleHasher
+from app.application.use_cases.authenticate_user import AuthenticateUserUseCase
+from app.application.use_cases.create_user import CreateUserUseCase
+from app.config import get_settings
 
 
 @pytest.fixture
 def client_and_repo() -> Tuple[TestClient, InMemoryUserRepository]:
-    """Create a TestClient wired with in-memory repository and dependencies.
+    """Create a TestClient wired with in-memory adapters.
 
-    Returns a tuple of (client, repo) so tests can interact with storage when
-    needed (for dependency overrides).
+    Both the auth use case and ``get_current_user`` share the same
+    ``JWTAuthAdapter`` (built from ``get_settings()``), so the full JWT
+    round-trip is exercised without a real database.
+
+    Returns:
+        A tuple of ``(client, repo)``.
     """
     app = create_app()
     repo = InMemoryUserRepository()
     hasher = SimpleHasher()
+    settings = get_settings()
+
+    token_provider = JWTAuthAdapter(
+        secret=settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
+    )
+
+    _bearer = HTTPBearer()
+
+    def _current_user(credentials: HTTPAuthorizationCredentials = Depends(_bearer)):
+        try:
+            payload = token_provider.verify_token(credentials.credentials)
+        except Exception as exc:
+            raise HTTPException(status_code=401, detail="Invalid token") from exc
+        user = repo.find_by_email(payload.get("sub", ""))
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid token user")
+        return user
 
     app.dependency_overrides[get_create_user_use_case] = lambda: CreateUserUseCase(repo, hasher)
-    app.dependency_overrides[get_auth_use_case] = lambda: AuthenticateUserUseCase(repo, hasher, get_auth_token_provider())
+    app.dependency_overrides[get_auth_use_case] = lambda: AuthenticateUserUseCase(
+        repo, hasher, token_provider
+    )
+    app.dependency_overrides[get_current_user] = _current_user
 
-    client = TestClient(app)
-    return client, repo
+    return TestClient(app), repo
 
 
 def test_login_returns_token(client_and_repo):
     """Login endpoint returns an access token for valid credentials."""
     client, _ = client_and_repo
 
-    # create user
     resp = client.post("/users", json={"name": "AuthUser", "email": "auth@example.com", "password": "pwd"})
     assert resp.status_code == 201
 
-    # login
     resp = client.post("/users/login", json={"email": "auth@example.com", "password": "pwd"})
     assert resp.status_code == 200
-    data = resp.json()
-    token = data.get("access_token")
+    token = resp.json().get("access_token")
     assert isinstance(token, str) and len(token) > 0
 
 
-def test_me_endpoint_requires_token_and_returns_user(client_and_repo):
-    """Protected /me endpoint requires a valid token and returns the user data."""
-    client, repo = client_and_repo
+def test_me_endpoint_with_valid_token_returns_user(client_and_repo):
+    """Protected /me endpoint returns user data when the token is valid."""
+    client, _ = client_and_repo
 
-    # create user and obtain token
-    resp = client.post("/users", json={"name": "AuthUser", "email": "auth@example.com", "password": "pwd"})
-    assert resp.status_code == 201
+    client.post("/users", json={"name": "AuthUser", "email": "auth@example.com", "password": "pwd"})
     resp = client.post("/users/login", json={"email": "auth@example.com", "password": "pwd"})
     token = resp.json().get("access_token")
 
-    # valid token -> success
-    headers = {"Authorization": f"Bearer {token}"}
-    # ensure dependency resolves current_user from in-memory repo
-    from app.adapters.http.dependencies_auth import get_current_user
-
-    app = client.app
-    app.dependency_overrides[get_current_user] = lambda: repo.find_by_email("auth@example.com")
-    resp = client.get("/users/me", headers=headers)
+    resp = client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     assert resp.json()["email"] == "auth@example.com"
 
-    # invalid token -> unauthorized
-    app.dependency_overrides.pop(get_current_user, None)
-    resp = client.get("/users/me", headers={"Authorization": "Bearer bad.token"})
+
+def test_me_endpoint_with_invalid_token_returns_401(client_and_repo):
+    """Protected /me endpoint returns 401 when the token is invalid."""
+    client, _ = client_and_repo
+
+    resp = client.get("/users/me", headers={"Authorization": "Bearer bad.token.here"})
     assert resp.status_code == 401
