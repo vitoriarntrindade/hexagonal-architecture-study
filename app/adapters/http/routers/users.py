@@ -12,11 +12,14 @@ from app.adapters.http.dependencies_update_delete import (
     get_update_user_use_case,
     get_delete_user_use_case,
 )
+from app.adapters.http.dependencies_list import get_list_users_use_case
 from app.application.use_cases.create_user import CreateUserUseCase
 from app.application.use_cases.get_user_by_email import GetUserByEmailUseCase
 from app.application.use_cases.update_user import UpdateUserUseCase
 from app.application.use_cases.delete_user import DeleteUserUseCase
+from app.application.use_cases.list_users import ListUsersUseCase
 from app.domain.exceptions import EmailAlreadyRegisteredError, UserNotFoundError
+from app.adapters.http.schemas import ListUsersResponse, ListUsersQuery
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -83,6 +86,25 @@ def get_user(
         )
     except UserNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("", response_model=ListUsersResponse, status_code=200)
+def list_users(
+    q: ListUsersQuery = Depends(),
+    use_case: ListUsersUseCase = Depends(get_list_users_use_case),
+) -> ListUsersResponse:
+    """Return a paginated list of users.
+
+    Args:
+        q (ListUsersQuery): Pagination parameters.
+        use_case (ListUsersUseCase): Injected use case instance.
+
+    Returns:
+        ListUsersResponse: Paginated users and total count.
+    """
+    users, total = use_case.execute(page=q.page, size=q.size)
+    items = [UserResponse(id=user.id, name=user.name, email=user.email, created_at=user.created_at) for user in users]
+    return ListUsersResponse(items=items, total=total)
 
 
 @router.patch("/{email}", response_model=UserResponse, status_code=200)

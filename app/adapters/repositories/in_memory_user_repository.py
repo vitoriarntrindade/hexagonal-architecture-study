@@ -52,3 +52,13 @@ class InMemoryUserRepository(UserRepository):
             email: The email address of the user to remove.
         """
         self._users = [user for user in self._users if user.email != email]
+
+    def list(self, page: int = 1, size: int = 10) -> tuple[list[User], int]:
+        """Return a paginated list of users and total count from memory.
+
+        Simple slicing is used since this adapter is intended for tests.
+        """
+        total = len(self._users)
+        start = (page - 1) * size
+        end = start + size
+        return self._users[start:end], total

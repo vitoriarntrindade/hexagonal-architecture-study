@@ -22,6 +22,20 @@ class UserResponse(BaseModel):
     created_at: datetime
 
 
+class ListUsersResponse(BaseModel):
+    """Response for paginated list of users."""
+
+    items: list[UserResponse]
+    total: int
+
+
+class ListUsersQuery(BaseModel):
+    """Query parameters for listing users."""
+
+    page: int = 1
+    size: int = 10
+
+
 class UpdateUserRequest(BaseModel):
     """Request payload for updating a user."""
     name: str | None = None

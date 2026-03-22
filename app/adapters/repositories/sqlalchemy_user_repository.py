@@ -54,28 +54,41 @@ class SQLAlchemyUserRepository(UserRepository):
         self._session.add(model)
         self._session.commit()
 
-        def update(self, user: User) -> None:
-            """Update an existing user in the database.
+    def update(self, user: User) -> None:
+        """Update an existing user in the database.
 
-            Args:
-                user: The User domain entity to update.
-            """
-            model = self._session.query(UserModel).filter(UserModel.email == user.email).first()
-            if model:
-                model.name = user.name
-                model.password_hash = user.password_hash
-                self._session.commit()
+        Args:
+            user: The User domain entity to update.
+        """
+        model = self._session.query(UserModel).filter(UserModel.email == user.email).first()
+        if model:
+            model.name = user.name
+            model.password_hash = user.password_hash
+            self._session.commit()
 
-        def delete(self, email: str) -> None:
-            """Remove a user by email address from the database.
+    def delete(self, email: str) -> None:
+        """Remove a user by email address from the database.
 
-            Args:
-                email: The email address of the user to remove.
-            """
-            model = self._session.query(UserModel).filter(UserModel.email == email).first()
-            if model:
-                self._session.delete(model)
-                self._session.commit()
+        Args:
+            email: The email address of the user to remove.
+        """
+        model = self._session.query(UserModel).filter(UserModel.email == email).first()
+        if model:
+            self._session.delete(model)
+            self._session.commit()
+
+    def list(self, page: int = 1, size: int = 10) -> tuple[list[User], int]:
+        """Return paginated users and total count using limit/offset.
+
+        Note: This method issues two queries (count + select). For large datasets
+        consider using more efficient pagination strategies.
+        """
+        query = self._session.query(UserModel)
+        total = query.count()
+        offset = (page - 1) * size
+        models = query.offset(offset).limit(size).all()
+        users = [self._to_entity(m) for m in models]
+        return users, total
 
     @staticmethod
     def _to_entity(model: UserModel) -> User:
