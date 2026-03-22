@@ -1,12 +1,13 @@
 import pytest
 from fastapi.testclient import TestClient
 from app.adapters.http.api import create_app
-from app.adapters.http.dependencies import get_create_user_use_case
+from app.adapters.http.dependencies import get_create_user_use_case, get_user_by_email_use_case
 from app.adapters.http.dependencies_update_delete import (
     get_update_user_use_case,
     get_delete_user_use_case,
 )
 from app.application.use_cases.create_user import CreateUserUseCase
+from app.application.use_cases.get_user_by_email import GetUserByEmailUseCase
 from app.application.use_cases.update_user import UpdateUserUseCase
 from app.application.use_cases.delete_user import DeleteUserUseCase
 from app.adapters.repositories.in_memory_user_repository import InMemoryUserRepository
@@ -18,6 +19,7 @@ def client():
     repo = InMemoryUserRepository()
     hasher = SimpleHasher()
     app.dependency_overrides[get_create_user_use_case] = lambda: CreateUserUseCase(repo, hasher)
+    app.dependency_overrides[get_user_by_email_use_case] = lambda: GetUserByEmailUseCase(repo)
     app.dependency_overrides[get_update_user_use_case] = lambda: UpdateUserUseCase(repo)
     app.dependency_overrides[get_delete_user_use_case] = lambda: DeleteUserUseCase(repo)
     return TestClient(app)

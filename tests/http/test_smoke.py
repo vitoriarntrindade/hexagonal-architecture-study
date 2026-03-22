@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.testclient import TestClient
 
 from app.adapters.http.api import create_app
-from app.adapters.http.dependencies import get_create_user_use_case
+from app.adapters.http.dependencies import get_create_user_use_case, get_user_by_email_use_case
 from app.adapters.http.dependencies_list import get_list_users_use_case
 from app.adapters.http.dependencies_update_delete import (
     get_update_user_use_case,
@@ -13,6 +13,7 @@ from app.adapters.http.dependencies_update_delete import (
 )
 from app.adapters.http.dependencies_auth import get_auth_use_case, get_current_user
 from app.application.use_cases.create_user import CreateUserUseCase
+from app.application.use_cases.get_user_by_email import GetUserByEmailUseCase
 from app.application.use_cases.list_users import ListUsersUseCase
 from app.application.use_cases.update_user import UpdateUserUseCase
 from app.application.use_cases.delete_user import DeleteUserUseCase
@@ -62,6 +63,7 @@ def make_overrides(
 
     return {
         get_create_user_use_case: lambda: CreateUserUseCase(repo, hasher),
+        get_user_by_email_use_case: lambda: GetUserByEmailUseCase(repo),
         get_list_users_use_case: lambda: ListUsersUseCase(repo, cache),
         get_update_user_use_case: lambda: UpdateUserUseCase(repo),
         get_delete_user_use_case: lambda: DeleteUserUseCase(repo),
