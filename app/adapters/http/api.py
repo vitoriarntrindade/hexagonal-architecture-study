@@ -10,3 +10,9 @@ def create_app() -> FastAPI:
 	app = FastAPI()
 	app.include_router(users_router)
 	return app
+
+
+# Convenience exported application instance so tools like `uvicorn` can
+# import the object directly without using the ``--factory`` flag.
+# Keep the factory for code that prefers building the app programmatically.
+app = create_app()
