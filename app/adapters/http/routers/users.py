@@ -62,6 +62,23 @@ def create_user(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.post("/login", response_model=TokenResponse, status_code=200)
+def login(
+    payload: LoginRequest,
+    use_case: AuthenticateUserUseCase = Depends(get_auth_use_case),
+) -> TokenResponse:
+    """Authenticate user and return a JWT token."""
+    token = use_case.execute(email=payload.email, password=payload.password)
+    return TokenResponse(access_token=token)
+
+
+@router.get("/me", response_model=UserResponse, status_code=200)
+def me(current_user=Depends(get_current_user)) -> UserResponse:
+    """Return current authenticated user."""
+    user = current_user
+    return UserResponse(id=user.id, name=user.name, email=user.email, created_at=user.created_at)
+
+
 @router.get("/{email}", response_model=UserResponse, status_code=200)
 def get_user(
     email: str,
