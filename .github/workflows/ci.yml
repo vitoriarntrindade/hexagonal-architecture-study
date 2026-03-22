@@ -7,23 +7,21 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  # ------------------------------------------------------------------
+  # Job 1: lint + unit/http tests (fast, no Docker needed)
+  # ------------------------------------------------------------------
+  unit:
     runs-on: ubuntu-latest
 
     env:
-      # Provide a safe default for the test run — the conftest.py also sets
-      # this via os.environ.setdefault, but setting it here ensures the value
-      # is available before any Python module is imported by the test runner.
       DATABASE_URL: "sqlite+pysqlite:///:memory:"
       JWT_SECRET: "ci-secret-key-at-least-32-bytes-long!"
       ENV: "test"
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
@@ -35,8 +33,38 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install ruff
 
-      - name: Lint with ruff
+      - name: Lint
         run: python -m ruff check .
 
-      - name: Run tests
-        run: python -m pytest -q
+      - name: Unit & HTTP tests
+        run: python -m pytest -q --ignore=tests/repositories/test_sqlalchemy_user_repository_integration.py
+
+  # ------------------------------------------------------------------
+  # Job 2: integration tests against a real PostgreSQL container
+  # Docker is available by default on ubuntu-latest runners.
+  # ------------------------------------------------------------------
+  integration:
+    runs-on: ubuntu-latest
+    needs: unit
+
+    env:
+      DATABASE_URL: "sqlite+pysqlite:///:memory:"
+      JWT_SECRET: "ci-secret-key-at-least-32-bytes-long!"
+      ENV: "test"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Integration tests (Testcontainers + PostgreSQL)
+        run: python -m pytest tests/repositories/test_sqlalchemy_user_repository_integration.py -v
